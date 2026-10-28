@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-13",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "39",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "For each positive integer $r$ less than $502,$ define\n\\[\nS_r=\\sum_{m\\ge 0}\\dbinom{10000}{502m+r},\n\\]\nwhere $\\binom{10000}{n}$ is defined to be $0$ when $n>10000.$ That is, $S_r$ is the sum of all binomial coefficients of the form $\\binom{10000}{k}$ for which $0\\le k\\le 10000$ and $k-r$ is a multiple of $502.$ Find the number of integers in the list $S_0,S_1,\\dots,S_{501}$ that are multiples of the prime number $503.$",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "For each positive integer $r$ less than $502,$ define\n\\[\nS_r=\\sum_{m\\ge 0}\\dbinom{10000}{502m+r},\n\\]\nwhere $\\binom{10000}{n}$ is defined to be $0$ when $n>10000.$ That is, $S_r$ is the sum of all binomial coefficients of the form $\\binom{10000}{k}$ for which $0\\le k\\le 10000$ and $k-r$ is a multiple of $502.$ Find the number of integers in the list $S_0,S_1,\\dots,S_{501}$ that are multiples of the prime number $503.$"
+    }
+  ]
+}

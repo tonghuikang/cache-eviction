@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-14",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "681",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "In an equiangular pentagon, the sum of the squares of the side lengths equals $308,$ and the sum of the squares of the diagonal lengths equals $800.$ The square of the perimeter of the pentagon can be expressed as $m \\sqrt n,$ where $m$ and $n$ are positive integers and $n$ is not divisible by the square of any prime. Find $m + n.$",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "In an equiangular pentagon, the sum of the squares of the side lengths equals $308,$ and the sum of the squares of the diagonal lengths equals $800.$ The square of the perimeter of the pentagon can be expressed as $m \\sqrt n,$ where $m$ and $n$ are positive integers and $n$ is not divisible by the square of any prime. Find $m + n.$"
+    }
+  ]
+}

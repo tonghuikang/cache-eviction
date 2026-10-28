@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-24",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "669",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "Let $S$ denote the value of the infinite sum\n\\[\n\\frac{1}{9} + \\frac{1}{99} + \\frac{1}{999} + \\frac{1}{9999}  + \\cdots\n\\]\nFind the remainder when the greatest integer less than or equal to $10^{100} S$ is divided by $1000.$",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "Let $S$ denote the value of the infinite sum\n\\[\n\\frac{1}{9} + \\frac{1}{99} + \\frac{1}{999} + \\frac{1}{9999}  + \\cdots\n\\]\nFind the remainder when the greatest integer less than or equal to $10^{100} S$ is divided by $1000.$"
+    }
+  ]
+}

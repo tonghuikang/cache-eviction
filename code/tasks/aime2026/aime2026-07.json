@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-07",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "396",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "\nFind the number of functions $\\pi$ mapping the set $A =\\{1,2,3,4,5,6\\}$ onto $A$ such that for every $a \\in A,$\n\\[\n\\pi(\\pi(\\pi(\\pi(\\pi(\\pi(a)))))) = a.\n\\]",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "\nFind the number of functions $\\pi$ mapping the set $A =\\{1,2,3,4,5,6\\}$ onto $A$ such that for every $a \\in A,$\n\\[\n\\pi(\\pi(\\pi(\\pi(\\pi(\\pi(a)))))) = a.\n\\]"
+    }
+  ]
+}

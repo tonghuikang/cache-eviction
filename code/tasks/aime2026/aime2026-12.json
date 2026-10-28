@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-12",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "161",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "Triangle $\\triangle ABC$ lies in plane $\\mathcal P$ with $AB = 6, AC = 4,$ and $\\angle BAC = 90^\\circ.$ Let $D$ be the reflection across $\\overline{BC}$ of the centroid of $\\triangle ABC. {}$ Four spheres, all on the same side of $\\mathcal P,$ have radii $1, 2, 3,$ and $r$ and are tangent to $\\mathcal P$ at points $A, B, C,$ and $D,$ respectively. The four spheres are also each tangent to a second plane $\\mathcal T$ and are all on the same side of $\\mathcal T.$ The value of $r$ can be written as $\\tfrac mn,$ where $m$ and $n$ are relatively prime positive integers. Find $m+n.$",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "Triangle $\\triangle ABC$ lies in plane $\\mathcal P$ with $AB = 6, AC = 4,$ and $\\angle BAC = 90^\\circ.$ Let $D$ be the reflection across $\\overline{BC}$ of the centroid of $\\triangle ABC. {}$ Four spheres, all on the same side of $\\mathcal P,$ have radii $1, 2, 3,$ and $r$ and are tangent to $\\mathcal P$ at points $A, B, C,$ and $D,$ respectively. The four spheres are also each tangent to a second plane $\\mathcal T$ and are all on the same side of $\\mathcal T.$ The value of $r$ can be written as $\\tfrac mn,$ where $m$ and $n$ are relatively prime positive integers. Find $m+n.$"
+    }
+  ]
+}

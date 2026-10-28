@@ -1,0 +1,4 @@
+{
+  "sweep": "With about a quarter of the cache, the policies come close to full-cache accuracy.",
+  "conclusion": "On the reference traces Prefix Sliding loses the least attention weight and Head-sum and Head-maxsum move the chosen-token logprobs least, yet in the task sweep Random answers the most runs at every budget, tied with Head-maxsum at 32K, so neither metric predicted which policy keeps answers unchanged."
+}

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Graduated rollout eviction · AR25 level 2</title>
+<style>
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;padding:18px;background:#f5f5f5;color:#26313d;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:#1d4ed8}.shell{display:flex;gap:18px;height:100%;max-width:1600px;margin:auto;min-height:0}.rail{flex:0 0 310px;overflow:auto;padding:16px;background:white;border-radius:8px;box-shadow:0 1px 3px #0002}.rail h1{font-size:20px;line-height:1.2;margin:5px 0 10px}.rail h2{font-size:14px;margin:24px 0 8px}.rail p{margin:8px 0;color:#475569}.nav{display:flex;gap:12px;margin-bottom:13px}.nav a{text-decoration:none}.nav a:hover{text-decoration:underline}.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:10px 0;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}.meta dt{color:#64748b}.meta dd{margin:0;font-weight:600}.legend{margin:12px 0}.legend strong{display:block;margin-bottom:7px}.square-key{display:flex;align-items:center;gap:5px;margin-top:7px;color:#64748b;font-size:11px}.square-key .evicted{margin-left:10px}.layer-squares{display:inline-flex;gap:2px;vertical-align:middle}.layer-square{display:inline-block;width:10px;height:10px;border-radius:1px}.layer-square.kept{background:#334155}.layer-square.evicted{background:#b91c1c}.controls button{padding:5px 8px;border:1px solid #93c5fd;border-radius:4px;background:#eff6ff;color:#1d4ed8;cursor:pointer;font:inherit}.controls button:hover{background:#dbeafe}.controls{display:flex;flex-direction:column;gap:7px;margin:14px 0}.controls button{white-space:nowrap;font-size:12px;padding:5px 6px}.pane{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px}.pane-head{padding:12px 16px;background:white;border-bottom:1px solid #e2e8f0}.pane-head strong{display:block}.pane-head .sub{color:#64748b}.selection{min-height:19px;margin-top:4px;color:#334155;font:12px/1.4 "SF Mono",Monaco,Consolas,monospace}.content{flex:1;min-height:0;overflow:auto;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 "SF Mono",Monaco,Consolas,monospace}.text-block{border-radius:2px;cursor:pointer}.text-block.after{background:transparent}.text-block:hover{outline:1px solid #2563eb}.text-block.selected{outline:2px solid #2563eb;outline-offset:1px}.text-block.group-selected{background:rgba(37,99,235,.12)}.image-wrap{display:block;width:fit-content;max-width:100%;margin:10px 0;padding:7px;background:white;border:1px solid #e2e8f0;border-radius:5px;white-space:normal}.image-wrap.selected,.image-wrap.group-selected{border-color:#2563eb;box-shadow:0 0 0 1px #2563eb}.image-wrap canvas{display:block;max-width:100%;cursor:crosshair}.image-wrap figcaption{margin-top:5px;color:#64748b;font:11px/1.3 "SF Mono",Monaco,Consolas,monospace}.notice{padding:9px 10px;background:#eff6ff;border-left:3px solid #3b82f6}.error{color:#991b1b;background:#fee2e2;padding:10px;border-radius:4px}.hidden{display:none}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:800px){body{padding:9px;height:auto}.shell{display:block;height:auto}.rail{max-height:none;margin-bottom:10px}.pane{height:75vh}.content{padding:12px}}@media(max-width:400px){.controls button{font-size:11px;padding:5px 4px}}
+</style>
+</head>
+<body data-focus="retained">
+<div class="shell">
+<aside class="rail">
+  <nav class="nav"><a href="../">← All viewers</a></nav>
+  <h1>What was evicted?</h1>
+  <p>AR25 · level 2 · canary v85</p>
+  <div class="meta">
+    <dt>Prompt</dt><dd id="prompt-length">Loading…</dd>
+    <dt>Captured layers</dt><dd id="layer-count">—</dd>
+    <dt>KV policy</dt><dd>512 prefix · 4,096 recent · 24,064 history</dd>
+    <dt>Score delay</dt><dd>128 tokens</dd>
+  </div>
+  <div class="legend" aria-label="Layers evicted legend">
+    <strong>Layers without this block’s KV</strong>
+    <div class="square-key"><span class="layer-square kept"></span> Retained <span class="layer-square evicted"></span> Evicted</div>
+  </div>
+  <div class="controls">
+    <button type="button" id="focus" title="Cycle focus: retained, evicted, none">Focus: Retained</button>
+    <button type="button" id="next-group">Next fully retained group</button>
+  </div>
+</aside>
+<main class="pane">
+  <div class="pane-head">
+    <strong>Decoded rollout · captured KV status</strong>
+    <div class="sub">Hover or select colored text and faded image cells for position and per-layer KV status.</div>
+    <div id="selection" class="selection" role="status" aria-live="polite">Loading rollout…</div>
+  </div>
+  <div id="content" class="content" aria-label="Rollout tokens"></div>
+</main>
+</div>
+<script>
+(async()=>{
+  const sourceUrl='rollout-ar25-v85.jsonl';
+  const statusUrl='eviction-ar25-v85.json';
+  const tokenizerUrl='tokenizer.json';
+  const content=document.getElementById('content');
+  const selection=document.getElementById('selection');
+  let status, vocab, position=0, selected=null, selectedPosition=-1, selectedGroup=null, urlReady=false;
+  // Mirror the focus and the selected token into the query string, so the address bar is always a link to this exact view.
+  function syncURL(){if(!urlReady)return;const params=new URLSearchParams(location.search);params.set('focus',focusMode);params.set('pos',String(Math.max(selectedPosition,0)));history.replaceState(null,'',`${location.pathname}?${params}${location.hash}`)}
+  const tokenNodes=[];
+  const groups=[];
+  const blockToGroup=[];
+  let highlightedText=[];
+  let highlightedFigures=new Set();
+  const imageRenderers=[];
+  const imageRenderersByFigure=new WeakMap();
+  let focusMode='retained';
+  const kindName={system:'System',user:'User',assistant:'Assistant',reasoning:'Reasoning',tool_call:'Tool call',image:'Image',tool_result:'Tool result'};
+  function shade(kept){if(kept===null)return '#26313d';const fraction=(status.layer_ids.length-kept)/status.layer_ids.length;const stops=[[23,33,45],[109,40,217],[185,28,28]];const half=fraction<=.5?0:1;const t=fraction<=.5?fraction*2:(fraction-.5)*2;const rgb=stops[half].map((value,index)=>Math.round(value+(stops[half+1][index]-value)*t));return `rgb(${rgb.join(',')})`}
+  function fade(kept){if(kept===null)return focusMode==='none'?'transparent':'rgba(255,255,255,.97)';const retained=kept/status.layer_ids.length,evicted=1-retained;let opacity;if(focusMode==='retained')opacity=1-(1-.94*evicted)*(.12+.88*retained);else if(focusMode==='evicted')opacity=1-(.24+.76*retained)*(.03+.97*evicted*evicted*evicted);else opacity=.94*evicted;return `rgba(255,255,255,${opacity.toFixed(3)})`}
+  async function load(url){const response=await fetch(url,{cache:'no-store'});if(!response.ok)throw Error(`${url}: HTTP ${response.status}`);return response.text()}
+  function alphabet(){const codes=new Map();for(const [start,end] of [[33,127],[161,173],[174,256]])for(let b=start;b<end;b++)codes.set(b,b);let spare=0;for(let b=0;b<256;b++)if(!codes.has(b))codes.set(b,256+spare++);return new Map([...codes].map(([b,c])=>[String.fromCharCode(c),b]))}
+  function pieceBytes(piece,alpha){const bytes=new Uint8Array(piece.length);for(let i=0;i<piece.length;i++){const byte=alpha.get(piece[i]);if(byte===undefined)return new TextEncoder().encode(piece);bytes[i]=byte}return bytes}
+  function createVocab(tokenizer){const alpha=alphabet(), result=[];for(const [piece,rawId] of Object.entries(tokenizer.model.vocab))result[Number(rawId)]=pieceBytes(piece,alpha);const encoder=new TextEncoder();for(const entry of tokenizer.added_tokens||[])result[entry.id]=encoder.encode(entry.content);return result}
+  function decode(ids){const decoder=new TextDecoder('utf-8',{fatal:false});const pieces=ids.map(id=>{if(!vocab[id])throw Error(`Missing token ID ${id}`);return decoder.decode(vocab[id],{stream:true})});const tail=decoder.decode();if(tail&&pieces.length)pieces[pieces.length-1]+=tail;return pieces}
+  function categoryAt(pos){let low=0,high=status.spans.length;while(low<high){const mid=(low+high)>>1;if(status.spans[mid][1]<=pos)low=mid+1;else high=mid}return status.spans[low]?.[0]<=pos?status.spans[low][2]:null}
+  function layerCount(pos){return pos<status.prompt_length?status.counts[Math.floor(pos/status.block_size)]:null}
+  function statusClass(kept){return kept===null?'after':kept===0?'absent':kept===status.layer_ids.length?'present':'mixed'}
+  function describe(pos){const kind=categoryAt(pos);return `Position ${pos.toLocaleString()} · ${kindName[kind]||kind||'completion'}`}
+  function showSelection(pos,group=null){const label=group?`Group · positions ${group.start.toLocaleString()}–${(group.end-1).toLocaleString()} · ${(group.end-group.start).toLocaleString()} tokens`:describe(pos);selection.replaceChildren(document.createTextNode(label));if(pos>=status.prompt_length){selection.append(' · after captured prompt');return}const mask=status.masks[Math.floor(pos/status.block_size)];const grid=document.createElement('span');grid.className='layer-squares';grid.setAttribute('role','img');grid.setAttribute('aria-label',`${status.layer_ids.length-layerCount(pos)} layers evicted, ${layerCount(pos)} retained`);for(let index=0;index<status.layer_ids.length;index++){const kept=Boolean(mask&(1<<index));const square=document.createElement('span');square.className=`layer-square ${kept?'kept':'evicted'}`;square.title=`Layer ${status.layer_ids[index]}: ${kept?'retained':'evicted'}`;square.setAttribute('aria-hidden','true');grid.append(square)}selection.append(' · ',grid)}
+  function clearGroup(){selectedGroup=null;for(const node of highlightedText)node.classList.remove('group-selected');highlightedText=[];const previousFigures=highlightedFigures;highlightedFigures=new Set();for(const figure of previousFigures){figure.classList.remove('group-selected');imageRenderersByFigure.get(figure)?.()}}
+  function activate(node,pos,scroll=true){clearGroup();const previous=selected;selected?.classList.remove('selected');selected=node;selectedPosition=pos;selected?.classList.add('selected');imageRenderersByFigure.get(previous)?.();imageRenderersByFigure.get(node)?.();showSelection(pos);syncURL();if(scroll)node?.scrollIntoView({block:'center',inline:'nearest'})}
+  function activateGroup(group){activate(tokenNodes[group.start],group.start);selectedGroup=group;for(let pos=group.start;pos<group.end;pos++){const node=tokenNodes[pos];if(node.classList.contains('text-block')){node.classList.add('group-selected');highlightedText.push(node)}else highlightedFigures.add(node)}for(const figure of highlightedFigures){figure.classList.add('group-selected');imageRenderersByFigure.get(figure)?.()}showSelection(group.start,group)}
+  function imageDimensions(data){const binary=atob(data.slice(0,40));const view=new DataView(Uint8Array.from(binary,c=>c.charCodeAt(0)).buffer);return {width:view.getUint32(16),height:view.getUint32(20)}}
+  function renderText(record){const decoded=decode(record.tokens);const fragment=document.createDocumentFragment();
+    decoded.forEach((text,offset)=>{const pos=position+offset,kept=layerCount(pos),cls=statusClass(kept),kind=categoryAt(pos),span=document.createElement('span'),retained=kept===null?0:kept/status.layer_ids.length;span.className=`text-block ${cls}`;span.classList.add(kept===null?'ka':'k'+kept);span.dataset.position=String(pos);span.dataset.kind=kind||'completion';span.title=describe(pos);span.textContent=text;fragment.append(span);tokenNodes[pos]=span;});
+    content.append(fragment);position+=record.tokens.length;
+  }
+  function renderImage(record,index){const {width,height}=imageDimensions(record.image);const columns=Math.ceil(width/32),rows=Math.ceil(height/32),start=position;const figure=document.createElement('figure');figure.className='image-wrap';figure.dataset.position=String(start);const canvas=document.createElement('canvas');const displayWidth=Math.min(560,width),displayHeight=Math.round(height*displayWidth/width);canvas.width=displayWidth;canvas.height=displayHeight;canvas.style.width=`${displayWidth}px`;canvas.style.height=`${displayHeight}px`;canvas.setAttribute('aria-label',`Rollout image ${index}, ${columns} by ${rows} patch cells`);const caption=document.createElement('figcaption');caption.textContent=`Image ${index} · ${width}×${height} · ${columns*rows} logical tokens · positions ${start.toLocaleString()}–${(start+columns*rows-1).toLocaleString()}`;figure.append(canvas,caption);content.append(figure);
+    const image=new Image();image.onload=()=>{const ctx=canvas.getContext('2d');const redraw=()=>{ctx.clearRect(0,0,displayWidth,displayHeight);ctx.drawImage(image,0,0,displayWidth,displayHeight);for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){const pos=start+row*columns+col,x=col*displayWidth/columns,y=row*displayHeight/rows,w=displayWidth/columns+.5,h=displayHeight/rows+.5;ctx.fillStyle=fade(layerCount(pos));ctx.fillRect(x,y,w,h)}if(selectedGroup&&selectedGroup.start<start+columns*rows&&selectedGroup.end>start){for(let pos=Math.max(start,selectedGroup.start);pos<Math.min(start+columns*rows,selectedGroup.end);pos++){const index=pos-start,col=index%columns,row=Math.floor(index/columns),x=col*displayWidth/columns,y=row*displayHeight/rows;ctx.fillStyle='rgba(37,99,235,.12)';ctx.fillRect(x,y,displayWidth/columns,displayHeight/rows)}}else if(selected===figure&&selectedPosition>=start&&selectedPosition<start+columns*rows){const index=selectedPosition-start,col=index%columns,row=Math.floor(index/columns),x=col*displayWidth/columns,y=row*displayHeight/rows;ctx.strokeStyle='#2563eb';ctx.lineWidth=2;ctx.strokeRect(x+1,y+1,displayWidth/columns-2,displayHeight/rows-2)}};imageRenderers.push(redraw);imageRenderersByFigure.set(figure,redraw);redraw()};image.src=`data:image/png;base64,${record.image}`;
+    for(let i=0;i<columns*rows;i++)tokenNodes[start+i]=figure;
+    for(let i=0;i<columns*rows;i++)if(layerCount(start+i)===0){figure.classList.add('has-absent');figure.dataset.position=String(start+i);break}
+    function cell(event){const rect=canvas.getBoundingClientRect();const col=Math.min(columns-1,Math.max(0,Math.floor((event.clientX-rect.left)/rect.width*columns)));const row=Math.min(rows-1,Math.max(0,Math.floor((event.clientY-rect.top)/rect.height*rows)));return start+row*columns+col}
+    canvas.addEventListener('mousemove',event=>{showSelection(cell(event))});canvas.addEventListener('click',event=>activate(figure,cell(event)));position+=columns*rows;
+  }
+  function nextGroup(){const current=selectedPosition<0?-1:blockToGroup[Math.floor(selectedPosition/status.block_size)]??-1;for(let step=1;step<=groups.length;step++){const group=groups[(current+step)%groups.length];if(focusMode==='retained'&&group.kept!==status.layer_ids.length)continue;if(focusMode==='evicted'&&group.kept!==0)continue;activateGroup(group);return}}
+  function updateNextButton(){document.getElementById('next-group').textContent=focusMode==='none'?'Next group':`Next fully ${focusMode} group`}
+  try{
+    const [statusText,sourceText,tokenizerText]=await Promise.all([load(statusUrl),load(sourceUrl),load(tokenizerUrl)]);
+    status=JSON.parse(statusText);if(status.schema!=='rollout-eviction-example-v1'||status.block_size!==4||status.counts.length!==Math.ceil(status.prompt_length/4)||status.masks?.length!==status.counts.length)throw Error('Invalid eviction capture');
+    for(let block=0;block<status.masks.length;){const first=block,mask=status.masks[block];while(block<status.masks.length&&status.masks[block]===mask)block++;const group={start:first*status.block_size,end:Math.min(block*status.block_size,status.prompt_length),kept:status.counts[first]};const index=groups.length;groups.push(group);for(let part=first;part<block;part++)blockToGroup[part]=index}
+    {
+      const L=status.layer_ids.length,BG=[248,250,252],STOPS=[[23,33,45],[109,40,217],[185,28,28]];
+      const base=kept=>{if(kept===null)return [38,49,61];const f=(L-kept)/L,half=f<=.5?0:1,t=f<=.5?f*2:(f-.5)*2;return STOPS[half].map((v,i)=>Math.round(v+(STOPS[half+1][i]-v)*t))};
+      const mix=(c,a)=>`rgb(${c.map((v,i)=>Math.round(BG[i]+(v-BG[i])*a)).join(',')})`;
+      const css=[];
+      for(const kept of [null,...Array.from({length:L+1},(_,k)=>k)]){
+        const cls=kept===null?'ka':'k'+kept,c=base(kept),r=kept===null?0:kept/L;
+        css.push(`.${cls}{color:${mix(c,1)}}`);
+        css.push(`[data-focus="retained"] .${cls}{color:${mix(c,.12+.88*r)}}`);
+        css.push(`[data-focus="evicted"] .${cls}{color:${mix(c,kept===null?.12:.12+.88*(1-r))}}`);
+      }
+      const sheet=document.createElement('style');sheet.textContent=css.join('');document.head.append(sheet);
+    }
+    vocab=createVocab(JSON.parse(tokenizerText));document.getElementById('prompt-length').textContent=`${status.prompt_length.toLocaleString()} tokens`;document.getElementById('layer-count').textContent=String(status.layer_ids.length);
+    let images=0;const records=sourceText.split(/\r?\n/).filter(Boolean).map(JSON.parse);for(const record of records){if('image'in record)renderImage(record,++images);else renderText(record)}
+    if(position<status.prompt_length)throw Error(`Rollout stops at ${position}; capture expects ${status.prompt_length}`);
+    selection.textContent=`Loaded ${position.toLocaleString()} logical tokens. Shade shows 0–${status.layer_ids.length} layers evicted at prompt end.`;
+    document.getElementById('next-group').addEventListener('click',nextGroup);document.getElementById('focus').addEventListener('click',()=>{const modes=['retained','evicted','none'];focusMode=modes[(modes.indexOf(focusMode)+1)%modes.length];document.body.dataset.focus=focusMode;document.getElementById('focus').textContent=`Focus: ${focusMode[0].toUpperCase()}${focusMode.slice(1)}`;updateNextButton();clearGroup();syncURL();for(const redraw of imageRenderers)redraw();requestAnimationFrame(()=>{void content.scrollHeight})});
+    content.addEventListener('mouseover',event=>{const block=event.target.closest?.('.text-block');if(block&&content.contains(block))showSelection(Number(block.dataset.position))});
+    content.addEventListener('click',event=>{const block=event.target.closest?.('.text-block');if(block&&content.contains(block))activate(block,Number(block.dataset.position),false)});
+    activate(tokenNodes[0],0);
+    // ?focus=retained|evicted|none and ?pos=N reproduce a view exactly, which is
+    // how the appendix screenshots are captured.
+    const params=new URLSearchParams(location.search);
+    const wanted=params.get('focus');
+    if(['retained','evicted','none'].includes(wanted)){focusMode=wanted;document.body.dataset.focus=wanted;
+      document.getElementById('focus').textContent=`Focus: ${wanted[0].toUpperCase()}${wanted.slice(1)}`;
+      updateNextButton();for(const redraw of imageRenderers)redraw()}
+    const at=Number(params.get('pos'));
+    if(Number.isInteger(at)&&at>0&&tokenNodes[at])activate(tokenNodes[at],at);
+    urlReady=true;if(params.has('focus')||params.has('pos'))syncURL();
+  }catch(error){selection.className='selection error';selection.textContent=error.message||String(error)}
+})();
+</script>
+</body>
+</html>

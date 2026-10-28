@@ -1,0 +1,18 @@
+{
+  "kind": "aime",
+  "id": "aime2026-25",
+  "source": "MathArena/aime_2026@d61f486805306e6e6b5913504c07763a99e1b112",
+  "answer": "850",
+  "answer_regex": "\\\\boxed\\{\\s*([0-9]+)\\s*\\}",
+  "problem": "Let $\\triangle ABC$ be a triangle with $D$ on $\\overline{BC}$ such that $\\overline{AD}$ bisects $\\angle BAC.$ Let $\\omega$ be the circle that passes through $A$ and is tangent to segment $\\overline{BC}$ at $D.$ Let $E \\neq A$ and $F \\neq A$ be the intersections of $\\omega$ with segments $\\overline{AB}$ and $\\overline{AC},$ respectively. Suppose that $AB = 200, AC = 225,$ and all of $AE, AF, BD,$ and $CD$ are positive integers. Find the sum of all possible values of $BC.$",
+  "messages": [
+    {
+      "role": "system",
+      "content": "Solve the problem and put the final answer in \\boxed{}. The answer is an integer between 0 and 999, inclusive."
+    },
+    {
+      "role": "user",
+      "content": "Let $\\triangle ABC$ be a triangle with $D$ on $\\overline{BC}$ such that $\\overline{AD}$ bisects $\\angle BAC.$ Let $\\omega$ be the circle that passes through $A$ and is tangent to segment $\\overline{BC}$ at $D.$ Let $E \\neq A$ and $F \\neq A$ be the intersections of $\\omega$ with segments $\\overline{AB}$ and $\\overline{AC},$ respectively. Suppose that $AB = 200, AC = 225,$ and all of $AE, AF, BD,$ and $CD$ are positive integers. Find the sum of all possible values of $BC.$"
+    }
+  ]
+}

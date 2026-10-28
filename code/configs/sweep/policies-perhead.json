@@ -1,0 +1,152 @@
+[
+ {
+  "name": "random_2048",
+  "budget": 2048,
+  "prefix": 512,
+  "recent": 512
+ },
+ {
+  "name": "random_2048",
+  "budget": 4096,
+  "prefix": 1024,
+  "recent": 1024
+ },
+ {
+  "name": "random_2048",
+  "budget": 8192,
+  "prefix": 2048,
+  "recent": 2048
+ },
+ {
+  "name": "random_2048",
+  "budget": 16384,
+  "prefix": 4096,
+  "recent": 4096
+ },
+ {
+  "name": "random_2048",
+  "budget": 32768,
+  "prefix": 8192,
+  "recent": 8192
+ },
+ {
+  "name": "random_reservoir_2048",
+  "budget": 2048,
+  "prefix": 512,
+  "recent": 512
+ },
+ {
+  "name": "random_reservoir_2048",
+  "budget": 4096,
+  "prefix": 1024,
+  "recent": 1024
+ },
+ {
+  "name": "random_reservoir_2048",
+  "budget": 8192,
+  "prefix": 2048,
+  "recent": 2048
+ },
+ {
+  "name": "random_reservoir_2048",
+  "budget": 16384,
+  "prefix": 4096,
+  "recent": 4096
+ },
+ {
+  "name": "random_reservoir_2048",
+  "budget": 32768,
+  "prefix": 8192,
+  "recent": 8192
+ },
+ {
+  "name": "prefix_sliding_2048",
+  "budget": 2048,
+  "prefix": 512,
+  "recent": 1536
+ },
+ {
+  "name": "prefix_sliding_2048",
+  "budget": 4096,
+  "prefix": 1024,
+  "recent": 3072
+ },
+ {
+  "name": "prefix_sliding_2048",
+  "budget": 8192,
+  "prefix": 2048,
+  "recent": 6144
+ },
+ {
+  "name": "prefix_sliding_2048",
+  "budget": 16384,
+  "prefix": 4096,
+  "recent": 12288
+ },
+ {
+  "name": "prefix_sliding_2048",
+  "budget": 32768,
+  "prefix": 8192,
+  "recent": 24576
+ },
+ {
+  "name": "head_sum_2048",
+  "budget": 2048,
+  "prefix": 512,
+  "recent": 512
+ },
+ {
+  "name": "head_sum_2048",
+  "budget": 4096,
+  "prefix": 1024,
+  "recent": 1024
+ },
+ {
+  "name": "head_sum_2048",
+  "budget": 8192,
+  "prefix": 2048,
+  "recent": 2048
+ },
+ {
+  "name": "head_sum_2048",
+  "budget": 16384,
+  "prefix": 4096,
+  "recent": 4096
+ },
+ {
+  "name": "head_sum_2048",
+  "budget": 32768,
+  "prefix": 8192,
+  "recent": 8192
+ },
+ {
+  "name": "head_max_sum_2048",
+  "budget": 2048,
+  "prefix": 512,
+  "recent": 512
+ },
+ {
+  "name": "head_max_sum_2048",
+  "budget": 4096,
+  "prefix": 1024,
+  "recent": 1024
+ },
+ {
+  "name": "head_max_sum_2048",
+  "budget": 8192,
+  "prefix": 2048,
+  "recent": 2048
+ },
+ {
+  "name": "head_max_sum_2048",
+  "budget": 16384,
+  "prefix": 4096,
+  "recent": 4096
+ },
+ {
+  "name": "head_max_sum_2048",
+  "budget": 32768,
+  "prefix": 8192,
+  "recent": 8192
+ }
+]

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Parity metrics on reference traces · gpt-oss-20b</title>
+<style>
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;padding:18px;background:#f5f5f5;color:#26313d;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+a{color:#1d4ed8}.shell{display:flex;gap:18px;height:100%;max-width:1600px;margin:auto;min-height:0}.rail{flex:0 0 310px;overflow:auto;padding:16px;background:white;border-radius:8px;box-shadow:0 1px 3px #0002}.rail h1{font-size:20px;line-height:1.2;margin:5px 0 4px}.rail p{margin:3px 0 8px;color:#475569}.nav{display:flex;gap:12px;margin-bottom:8px}.nav a{text-decoration:none}.nav a:hover{text-decoration:underline}
+.picker{display:grid;grid-template-columns:30px repeat(4,1fr);gap:3px 4px;align-items:center}.picker .head{color:#64748b;font-size:11px;text-align:center}.picker .row{color:#64748b;font-size:12px;text-align:left}
+.picker button{height:22px;padding:0 2px;border:1px solid #93c5fd;border-radius:4px;background:white;color:#1d4ed8;cursor:pointer;font:inherit;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}.picker button:hover{background:#dbeafe}.picker button .ok{color:#15803d}.picker button .bad{color:#b91c1c}.picker button[aria-pressed="true"]{background:#1d4ed8;border-color:#1d4ed8;color:white}.picker button[aria-pressed="true"] span{color:white}
+.policies{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin:10px 0 0}.policies button:nth-child(-n+2){grid-column:span 3}.policies button:nth-child(n+3){grid-column:span 2}
+.budgets{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:5px 0 8px}
+.policies button,.budgets button{padding:4px 2px;border:1px solid #93c5fd;border-radius:4px;background:white;color:#1d4ed8;cursor:pointer;font:inherit;font-size:12px;white-space:nowrap}.policies button:hover,.budgets button:hover{background:#dbeafe}.policies button[aria-pressed="true"],.budgets button[aria-pressed="true"]{background:#1d4ed8;border-color:#1d4ed8;color:white}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;padding:8px 0;margin:0;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0}.meta dt{color:#64748b}.meta dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.legend{margin:5px 0 0}.legend strong{display:block;margin-bottom:6px;font-size:13px}.ramp{display:grid;grid-template-columns:repeat(12,1fr);height:12px;border:1px solid #e2e8f0;border-radius:2px;overflow:hidden}.ramp-labels{position:relative;height:15px;margin-top:2px;color:#64748b;font-size:11px;font-variant-numeric:tabular-nums}.ramp-labels span{position:absolute;transform:translateX(-50%)}.legend .note{margin:5px 0 0;color:#64748b;font-size:12px}
+.pane{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px}.pane-head{padding:12px 16px;background:white;border-bottom:1px solid #e2e8f0}.pane-head strong{display:block}.pane-head .sub{color:#64748b}
+.selection{min-height:18px;margin-top:4px;color:#334155;font:12px/1.4 "SF Mono",Monaco,Consolas,monospace}
+.content{flex:1;min-height:0;overflow:auto;padding:18px;white-space:pre-wrap;overflow-wrap:anywhere;color:#17212d;font:13px/1.6 "SF Mono",Monaco,Consolas,monospace;cursor:pointer}
+.content span.sel-fallback{outline:2px solid #2563eb;outline-offset:1px}::highlight(token-selected){background-color:#1d4ed8;color:white}
+.error{color:#991b1b;background:#fee2e2;padding:10px;border-radius:4px}
+@media(max-width:800px){body{padding:9px;height:auto}.shell{display:block;height:auto}.rail{max-height:none;margin-bottom:10px}.pane{height:75vh}.content{padding:12px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="rail">
+  <nav class="nav"><a href="../">← All viewers</a></nav>
+  <h1>Parity metrics on reference traces</h1>
+  <p>gpt-oss-20b · Table 1 full-cache runs</p>
+  <div class="picker" id="picker" role="group" aria-label="Problem and seed"></div>
+  <div class="policies" id="policies" role="group" aria-label="Eviction policy"></div>
+  <div class="budgets" id="budgets" role="group" aria-label="Budget"></div>
+  <dl class="meta">
+    <dt>Problem</dt><dd id="m-problem">—</dd>
+    <dt>Seed</dt><dd id="m-seed">—</dd>
+    <dt>Generated</dt><dd id="m-generated">—</dd>
+    <dt>Answer</dt><dd id="m-answer">—</dd>
+    <dt>Mean lost</dt><dd id="m-mean" title="Mean lost attention mass over every position of this trace, the Table 1 attention weight difference for one run">—</dd>
+  </dl>
+  <div class="legend" aria-label="Shading legend">
+    <strong>Attention mass lost at each token</strong>
+    <div class="ramp" id="ramp"></div>
+    <div class="ramp-labels"><span style="left:8.333%">0.01</span><span style="left:33.333%">0.05</span><span style="left:50%">0.1</span><span style="left:66.667%">0.2</span><span style="left:91.667%">0.5</span></div>
+    <p class="note">Fainter text lost more, and the faintest lost 0.5 or more.</p>
+  </div>
+</aside>
+<main class="pane">
+  <div class="pane-head">
+    <strong>Decoded trace · lost attention</strong>
+    <div class="sub">Hover or click a token for its position, channel and lost mass under the chosen policy and budget.</div>
+    <div id="selection" class="selection" role="status" aria-live="polite">Loading trace…</div>
+  </div>
+  <div id="content" class="content" aria-label="Trace tokens"></div>
+</main>
+</div>
+<script>
+(async()=>{
+  const PROBLEMS=[4,11,13,26,29],SEEDS=[0,1,2,3],BUDGETS=[2048,4096,8192,16384,32768];
+  const POLICIES=[['random_2048','Random Attention'],['random_reservoir_2048','Reservoir'],['prefix_sliding_2048','Prefix Sliding'],['head_sum_2048','Head-sum'],['head_max_sum_2048','Head-maxsum']];
+  // Generated tokens and correctness per run, for the picker before any file loads. From trials-005.jsonl.gz.
+  const RUNS={'4-0':[24977,1],'4-1':[33351,1],'4-2':[25363,1],'4-3':[23975,1],'11-0':[67135,1],'11-1':[79583,1],'11-2':[74703,1],'11-3':[81718,1],'13-0':[22133,1],'13-1':[45952,1],'13-2':[37868,1],'13-3':[38611,1],'26-0':[57112,1],'26-1':[39796,1],'26-2':[45363,1],'26-3':[130000,0],'29-0':[72422,1],'29-1':[130000,0],'29-2':[105927,1],'29-3':[35736,1]};
+  const KIND={control:'Control',system:'System',developer:'Developer',user:'User',analysis:'Analysis',commentary:'Commentary',final:'Final'};
+  const content=document.getElementById('content'),selection=document.getElementById('selection');
+  const hasHighlights=typeof Highlight==='function'&&!!(window.CSS&&CSS.highlights);
+  const cache=new Map();
+  let data=null,problem=4,seed=0,policy='random_2048',budget=8192,selectedPosition=0,urlReady=false,loadSeq=0;
+  let kinds,codes=null,start=0,values=null,spans=[],spanStart=null,charOff=null,fallbackSpan=null;
+  const fileName=(p,s)=>`aime2026-${String(p).padStart(2,'0')}-s${s}`;
+  function syncURL(){if(!urlReady)return;const params=new URLSearchParams(location.search);params.set('problem',String(problem));params.set('seed',String(seed));params.set('policy',policy);params.set('budget',String(budget));params.set('pos',String(Math.max(selectedPosition,0)));history.replaceState(null,'',`${location.pathname}?${params}${location.hash}`)}
+  function bytes(b64){const s=atob(b64),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a}
+  async function fetchRun(p,s){const key=fileName(p,s);if(cache.has(key))return cache.get(key);const response=await fetch(`data/${key}.json`);if(!response.ok)throw Error(`data/${key}.json: HTTP ${response.status}`);const d=await response.json();if(d.schema!=='gpt-oss-20b-reference-lost-v1')throw Error('Invalid trace data');d.kindArray=bytes(d.kinds);cache.set(key,d);return d}
+
+  // Shade levels on fixed lost-mass edges, the same for every run, policy and budget. Level 0 is below 0.01 and stays unshaded.
+  const EDGES=[0.01,0.02,0.03,0.05,0.07,0.1,0.15,0.2,0.3,0.4,0.5],LEVELS=EDGES.length+1;
+  let codeValue=null,codeLevel=null;
+  function buildScale(scale){codeValue=new Float64Array(256);codeLevel=new Uint8Array(256);for(let c=1;c<256;c++){const v=10**(scale.log10_min+(c-1)*(scale.log10_max-scale.log10_min)/scale.steps);codeValue[c]=v;let l=0;while(l<EDGES.length&&v>=EDGES[l])l++;codeLevel[c]=l}}
+  {
+    // Text fades toward the page as more of its attention was lost, as in the other viewers. Colour, not opacity, keeps rendering fast.
+    const BG=[248,250,252],INK=[23,33,45],css=[],ramp=document.getElementById('ramp');
+    const lerp=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+    for(let l=0;l<LEVELS;l++){const t=l/(LEVELS-1);const c=lerp(INK,BG,.88*t);
+      const color=`rgb(${c.join(',')})`;css.push(`.l${l}{color:${color}}`);
+      const cell=document.createElement('span');cell.style.background=color;ramp.append(cell)}
+    const sheet=document.createElement('style');sheet.textContent=css.join('');document.head.append(sheet);
+  }
+
+  function lostAt(pos){if(pos<start)return 0;return codeValue[codes[pos-start]]}
+  function levelAt(pos){return pos<start?0:codeLevel[codes[pos-start]]}
+  function fmt(v){return v===0?'0':v<0.001?v.toExponential(1):v.toFixed(3)}
+  function showSelection(pos){
+    const k=data.kind_names[kinds[pos]];
+    const lost=pos<start?'0 (no eviction yet)':(codes[pos-start]===0?'<0.0001':fmt(lostAt(pos)));
+    selection.className='selection';selection.textContent=`Position ${pos.toLocaleString()} · ${KIND[k]||k} · lost mass ${lost}`;
+  }
+  function spanIndex(pos){let lo=0,hi=spans.length-1;while(lo<hi){const mid=(lo+hi+1)>>1;if(spanStart[mid]<=pos)lo=mid;else hi=mid-1}return lo}
+  function allEmpty(a,b){for(let p=a;p<b;p++)if(data.pieces[p]!=='')return false;return true}
+  function tokenRange(a,b){
+    while(b<data.length&&data.pieces[b-1]===''&&allEmpty(a,b))b++;
+    const r=document.createRange();r.setStart(spans[spanIndex(a)].firstChild,charOff[a]);r.setEnd(spans[spanIndex(b-1)].firstChild,charOff[b-1]+data.pieces[b-1].length);return r
+  }
+  function paintSelection(){
+    if(hasHighlights)CSS.highlights.set('token-selected',new Highlight(tokenRange(selectedPosition,selectedPosition+1)));
+    else{fallbackSpan?.classList.remove('sel-fallback');fallbackSpan=spans[spanIndex(selectedPosition)];fallbackSpan.classList.add('sel-fallback')}
+  }
+  function scrollToPosition(pos){
+    const adjust=()=>{const rect=tokenRange(pos,pos+1).getBoundingClientRect(),box=content.getBoundingClientRect();content.scrollTop+=rect.top-box.top-content.clientHeight/2};
+    spans[spanIndex(pos)].scrollIntoView({block:'center'});adjust();requestAnimationFrame(()=>{adjust();requestAnimationFrame(adjust)});
+  }
+  function activate(pos,scroll){selectedPosition=pos;paintSelection();showSelection(pos);syncURL();if(scroll)scrollToPosition(pos)}
+
+  function render(){
+    const n=data.length,pieces=data.pieces;
+    const top=content.scrollTop;content.replaceChildren();spans=[];const starts=[];charOff=new Int32Array(n);
+    let chunk=null,chunkTokens=0,span=null,text='',lv=-1,offset=0;
+    const flushSpan=()=>{if(span){span.append(document.createTextNode(text));chunk.append(span)}span=null};
+    const flushChunk=()=>{flushSpan();if(chunk)content.append(chunk);chunk=null};
+    for(let pos=0;pos<n;pos++){
+      if(!chunk){chunk=document.createElement('div');chunkTokens=0;lv=-1}
+      const l=levelAt(pos);
+      if(l!==lv){flushSpan();span=document.createElement('span');if(l)span.className='l'+l;span.idx=spans.length;spans.push(span);starts.push(pos);text='';offset=0;lv=l}
+      const piece=pieces[pos];charOff[pos]=offset;text+=piece;offset+=piece.length;chunkTokens++;
+      // Break chunks only after a newline so a chunk boundary never splits a line.
+      if(piece.endsWith('\n')){if(chunkTokens>=1200)flushChunk()}else if(chunkTokens>=8000)flushChunk();
+    }
+    flushChunk();
+    spanStart=Int32Array.from(starts.concat([n]));
+    content.scrollTop=top;
+  }
+
+  const pickerButtons=new Map(),policyButtons=new Map(),budgetButtons=new Map();
+  {
+    const picker=document.getElementById('picker');
+    picker.append(Object.assign(document.createElement('span'),{className:'head',textContent:''}));
+    for(const s of SEEDS)picker.append(Object.assign(document.createElement('span'),{className:'head',textContent:`seed ${s}`}));
+    for(const p of PROBLEMS){
+      picker.append(Object.assign(document.createElement('span'),{className:'row',textContent:`P${String(p).padStart(2,'0')}`,title:`AIME 2026 problem ${p}`}));
+      for(const s of SEEDS){const [gen,ok]=RUNS[`${p}-${s}`];const b=document.createElement('button');b.type='button';b.title=`Problem ${p}, seed ${s}: ${gen.toLocaleString()} generated tokens, ${ok?'correct':'no answer'}`;
+        b.append(`${Math.round(gen/1000)}K `,Object.assign(document.createElement('span'),{className:ok?'ok':'bad',textContent:ok?'✓':'✗'}));
+        b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>{if(p!==problem||s!==seed)show(p,s,policy,budget,0,false)});picker.append(b);pickerButtons.set(`${p}-${s}`,b)}
+    }
+    for(const [name,text] of POLICIES){const b=document.createElement('button');b.type='button';b.textContent=text;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>{if(name!==policy)show(problem,seed,name,budget,selectedPosition,null)});document.getElementById('policies').append(b);policyButtons.set(name,b)}
+    for(const bu of BUDGETS){const b=document.createElement('button');b.type='button';b.textContent=`${bu/1024}K`;b.title=`${bu.toLocaleString()}-token budget`;b.setAttribute('aria-pressed','false');b.addEventListener('click',()=>{if(bu!==budget)show(problem,seed,policy,bu,selectedPosition,null)});document.getElementById('budgets').append(b);budgetButtons.set(bu,b)}
+  }
+  function press(){for(const [k,b] of pickerButtons)b.setAttribute('aria-pressed',String(k===`${problem}-${seed}`));for(const [k,b] of policyButtons)b.setAttribute('aria-pressed',String(k===policy));for(const [k,b] of budgetButtons){b.setAttribute('aria-pressed',String(k===budget));b.hidden=!!data&&!data.lost[policy][String(k)]}}
+
+  // scroll: true centres pos, false goes to the top, null keeps the scroll offset (same run, new setting).
+  async function show(p,s,pol,bu,pos,scroll){
+    const seq=++loadSeq;problem=p;seed=s;policy=pol;budget=bu;press();
+    if(!cache.has(fileName(p,s))){selection.className='selection';selection.textContent=`Loading problem ${p}, seed ${s}…`}
+    const d=await fetchRun(p,s);if(seq!==loadSeq)return;
+    const t0=performance.now();
+    const sameRun=data===d;data=d;kinds=d.kindArray;if(!codeValue)buildScale(d.scale);
+    const item=d.lost[policy][String(budget)];start=item.start;codes=bytes(item.codes);press();
+    document.getElementById('m-problem').textContent=`AIME 2026 problem ${p}`;
+    document.getElementById('m-seed').textContent=String(s);
+    document.getElementById('m-generated').textContent=`${d.generated.toLocaleString()} tokens`;
+    document.getElementById('m-answer').textContent=d.prediction==null?`none · expected ${d.answer} ✗`:`${d.prediction} · expected ${d.answer} ${d.quality?'✓':'✗'}`;
+    document.getElementById('m-mean').textContent=`${item.mean.toFixed(3)} · ${POLICIES.find(x=>x[0]===policy)[1]} ${budget/1024}K`;
+    if(!sameRun)content.scrollTop=0;
+    render();
+    activate(Math.min(Math.max(0,pos),d.length-1),scroll===true);
+    window.__renderMs=performance.now()-t0;
+  }
+
+  function tokenAt(x,y){
+    let node,off;
+    if(document.caretRangeFromPoint){const r=document.caretRangeFromPoint(x,y);if(!r)return -1;node=r.startContainer;off=r.startOffset}
+    else if(document.caretPositionFromPoint){const r=document.caretPositionFromPoint(x,y);if(!r)return -1;node=r.offsetNode;off=r.offset}
+    else return -1;
+    const span=node?.parentElement;if(!span||span.idx===undefined||!content.contains(span))return -1;
+    if(off>0){const r=document.createRange();r.setStart(node,off-1);r.setEnd(node,off);const b=r.getBoundingClientRect();if(x>=b.left&&x<=b.right&&y>=b.top&&y<=b.bottom)off--}
+    let lo=spanStart[span.idx],hi=spanStart[span.idx+1]-1;
+    while(lo<hi){const mid=(lo+hi+1)>>1;if(charOff[mid]<=off)lo=mid;else hi=mid-1}
+    return lo;
+  }
+  let pending=null;
+  content.addEventListener('mousemove',event=>{if(!data)return;const first=pending===null;pending=[event.clientX,event.clientY];if(first)requestAnimationFrame(()=>{const [x,y]=pending;pending=null;const pos=tokenAt(x,y);if(pos>=0)showSelection(pos)})});
+  content.addEventListener('mouseleave',()=>{if(data)showSelection(selectedPosition)});
+  content.addEventListener('click',event=>{if(!data)return;const pos=tokenAt(event.clientX,event.clientY);if(pos>=0)activate(pos,false)});
+
+  try{
+    // ?problem=, ?seed=, ?policy=, ?budget= and ?pos= reproduce a view exactly.
+    const params=new URLSearchParams(location.search);
+    const wp=Number(params.get('problem'));if(PROBLEMS.includes(wp))problem=wp;
+    const ws=Number(params.get('seed'));if(params.has('seed')&&SEEDS.includes(ws))seed=ws;
+    const wpol=params.get('policy');if(POLICIES.some(x=>x[0]===wpol))policy=wpol;
+    const wb=Number(params.get('budget'));if(BUDGETS.includes(wb))budget=wb;
+    const at=Number(params.get('pos'));const pos=Number.isInteger(at)&&at>0?at:0;
+    await show(problem,seed,policy,budget,pos,pos>0);
+    window.__loadedMs=performance.now();urlReady=true;if([...params.keys()].length)syncURL();
+  }catch(error){selection.className='selection error';selection.textContent=error.message||String(error)}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+ "context_tokens": 131072,
+ "max_new_tokens": 130000,
+ "reasoning_effort": "high",
+ "temperature": 1.0,
+ "top_p": 1.0,
+ "concurrency": "up to 320 requests, admitted while their worst-case KV reservations fit 95% of the pool",
+ "chunked_prefill_tokens": 2048,
+ "kv_pool_tokens": 2886559,
+ "protection": "k1 = k2 = k3/2, so k1 = k2 = budget/4 and Prefix Sliding keeps k1 plus a recent window of k2 + k3",
+ "hardware": "NVIDIA RTX PRO 6000 on Modal for the sweep, the full-cache baseline and the reference metrics, NVIDIA GB10 for the counter timing",
+ "retention": "per full-attention layer and KV head, survivors relocated into shared slots and the rest freed",
+ "decode": "streaming sessions in 2048-token calls, one sampling seed per run"
+}

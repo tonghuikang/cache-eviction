@@ -1,0 +1,358 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\renewcommand{\bfdefault}{m}
+\newcommand{\term}[1]{{\fontseries{b}\selectfont #1}}
+% Captions are small and indented on both sides, so they read apart from the body text.
+\newcommand{\capt}[1]{\par{\small\leftskip=2.5em\rightskip=2.5em\noindent #1\par}\vspace{.6em}}
+\usepackage[hmargin=0.8in,vmargin=0.65in]{geometry}
+\usepackage{xcolor,titlesec,enumitem,graphicx,array}
+% Notes to self. \excludecomment hides them, \includecomment shows them while
+% proofreading. Anything inside \begin{notes} is skipped, so braces and stray
+% markup in a note never reach the typesetter.
+\usepackage{comment,needspace}
+\excludecomment{notes}
+\usepackage[colorlinks=true,urlcolor=blue]{hyperref}
+\titleformat{\section}{\normalfont\large}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize}{\thesubsection}{0.6em}{}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=1.4em,itemsep=3pt,topsep=3pt}
+\newcommand{\emptyaxes}[2]{\setlength{\unitlength}{1pt}\begin{picture}(135,100)
+\put(27,20){\vector(1,0){103}}\put(27,20){\vector(0,1){75}}
+\put(78,3){\makebox(0,0){\scriptsize #1}}
+\put(8,57){\makebox(0,0){\rotatebox{90}{\scriptsize #2}}}
+\end{picture}}
+\hypersetup{pdftitle={Comparing KV Cache Eviction Policies},pdfauthor={Hui-Kang Tong}}
+\input{generated/values.tex}
+\input{generated/status.tex}
+\begin{document}
+\begin{center}
+{\LARGE Comparing KV Cache Eviction Policies\par}
+\vspace{8pt}
+Hui-Kang Tong | GStar Bootcamp 2026 Individual Project Report\\
+27 October 2026
+\end{center}
+
+\section*{Abstract}
+Most LLMs keep global attention layers, whose memory grows with every token in the context.
+
+Cache eviction bounds that memory by dropping the keys and values of some past tokens, and ``global'' attention is now calculated with the remaining KV cache.
+I compare five cache eviction policies on gpt-oss-20b.
+I measure them two ways, by replaying twenty frozen full-cache AIME runs as reference traces and by running AIME problems under a fixed cache.
+
+I also describe using cache eviction in ARC-AGI-3.
+I achieved greater decode throughput than the Milestone 2 prize-winning submission at parity in score per token.
+I \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3}{inspected} which tokens are evicted.
+As of report submission, I am in 25th place in ARC-AGI-3.
+
+
+\section{Introduction}
+
+The memory of a global attention layer grows with context length, because every past token keeps a key and a value.
+Sliding window attention and linear attention reduce how many layers pay that cost, but models still keep global attention layers, and inference memory usage still scales with context length.
+
+Not every cached token matters.
+Some tokens hardly influence the output, because their attention weight is near zero.
+This is similar to human memory.
+Humans can hold a long conversation without remembering every word.
+
+
+\section{Candidate eviction policies}
+
+An eviction policy decides which cache entries to drop.
+Every policy below drops whole key and value entries, and all of them decide at the same cadence, once every 2048 tokens.
+Each keeps a protected prefix of $k_1$ tokens and a protected recent window of $k_2$ tokens, and fills the remaining $k_3$ by its own rule.
+
+\begin{center}
+\begin{minipage}{0.24\linewidth}\centering{\scriptsize No eviction}\par\setlength{\unitlength}{1pt}\begin{picture}(110,110)
+\put(26,24){\includegraphics[width=72pt,height=72pt]{generated/causal-pixels-none.pdf}}
+\put(26,15){\vector(1,0){74}}
+\put(21,96){\vector(0,-1){74}}
+\put(63,5){\makebox(0,0){\scriptsize Cache positions}}
+\put(10,60){\makebox(0,0){\rotatebox{90}{\scriptsize Current position}}}
+
+\end{picture}\end{minipage}\hfill
+\begin{minipage}{0.24\linewidth}\centering{\scriptsize Random}\par\setlength{\unitlength}{1pt}\begin{picture}(110,110)
+\put(26,24){\includegraphics[width=72pt,height=72pt]{generated/causal-pixels-random.pdf}}
+\put(26,15){\vector(1,0){74}}
+\put(21,96){\vector(0,-1){74}}
+\put(63,5){\makebox(0,0){\scriptsize Cache positions}}
+\put(10,60){\makebox(0,0){\rotatebox{90}{\scriptsize Current position}}}
+
+\end{picture}\end{minipage}\hfill
+\begin{minipage}{0.24\linewidth}\centering{\scriptsize Prefix Sliding}\par\setlength{\unitlength}{1pt}\begin{picture}(110,110)
+\put(26,24){\includegraphics[width=72pt,height=72pt]{generated/causal-pixels-prefix.pdf}}
+\put(26,15){\vector(1,0){74}}
+\put(21,96){\vector(0,-1){74}}
+\put(63,5){\makebox(0,0){\scriptsize Cache positions}}
+\put(10,60){\makebox(0,0){\rotatebox{90}{\scriptsize Current position}}}
+
+\end{picture}\end{minipage}\hfill
+\begin{minipage}{0.24\linewidth}\centering{\scriptsize Head-sum / Head-maxsum}\par\setlength{\unitlength}{1pt}\begin{picture}(110,110)
+\put(26,24){\includegraphics[width=72pt,height=72pt]{generated/causal-pixels-attention.pdf}}
+\put(26,15){\vector(1,0){74}}
+\put(21,96){\vector(0,-1){74}}
+\put(63,5){\makebox(0,0){\scriptsize Cache positions}}
+\put(10,60){\makebox(0,0){\rotatebox{90}{\scriptsize Current position}}}
+
+\end{picture}\end{minipage}
+\end{center}
+\refstepcounter{figure}\label{fig:schematic}
+\capt{Figure \thefigure. Illustrative causal retention maps, with current position on rows and cache positions on columns.
+Blue marks protection, orange other retention, red the entries evicted at the end of that chunk, and white entries already gone, with blank future positions and equal retained area across eviction policies.}
+
+\term{Prefix Sliding}~[1]. Retain the cache of the first $k_1$ tokens and the last $k_2 + k_3$ tokens.
+
+\term{Random Attention}~[2]. Retain the cache of the first $k_1$ tokens, the last $k_2$ tokens and a random $k_3$ of the tokens in between.
+The random scores are drawn afresh at every boundary, so an old token faces the draw many times and its chance of surviving falls with its age.
+
+\term{Reservoir}~[3]. The same, except that each token draws one random score when it arrives and keeps it.
+Keeping the $k_3$ highest fixed scores among everything seen so far is reservoir sampling, so the retained middle is a uniform sample of the whole history and an early token is as likely to remain as a recent one.
+
+\term{Head-sum}~[4]. Retain the cache of the first $k_1$ tokens and the last $k_2$ tokens, and evict tokens based on attention head sum, retaining $k_3$ tokens.
+This is the attention-weight sum of H$_2$O, which accumulates normalized attention over time.
+
+\term{Head-maxsum}~[4]. Retain the cache of the first $k_1$ tokens and the last $k_2$ tokens, and evict tokens based on attention max sum, retaining $k_3$ tokens.
+This is my adaptation of the same H$_2$O score, taking the largest head weight at each query instead of their sum.
+
+To keep the comparison fair, the total amount of cache allowed is constant between the policies.
+I set $k_1 = k_2 = k_3/2$.
+
+\subsection{Implementation on gpt-oss-20b}
+
+Each of the 12 full-attention layers and each of its 8 KV heads chooses its own survivors, as in Random Attention~[2].
+The counters of Head-sum and Head-maxsum are kept per KV head, as the sum or the maximum over the 8 query heads that share it.
+At a boundary every head's survivors are copied into one shared set of slots.
+The copies need no extra memory, because the slots they read from and write to are disjoint.
+The 12 sliding-window layers keep their own 128-token window and are never evicted.
+
+\subsection{Parity metrics on reference traces}
+
+There are two ways to measure the performance of an eviction policy.
+One is to replay frozen reference traces offline and compare each policy against full cache.
+The other is to run the task itself and measure accuracy.
+
+I use the 20 full-cache AIME~[5] runs of the online sweep in Section~\ref{sec:online} as the reference traces, problems 4, 11, 13, 26 and 29 with four seeds each, including the two that reached the 130,000-token limit without an answer.
+Each trace is fed back to the model as a prompt in 2048-token chunks, and at every boundary the policy hides its victims from the full-attention layers.
+Each metric below is averaged over the 20 traces.
+
+I calculate three parity metrics, each comparing a policy against full cache on the same trace.
+
+\term{Logprob difference.}
+If eviction changed nothing, the model would give every chosen token the same logprob as it does with full cache.
+The metric is the mean absolute difference between the logprob of each chosen token with and without eviction.
+
+\term{Attention weight difference.}
+This is the attention weight the unevicted model puts on keys the policy has already evicted, averaged over queries, heads and the full-attention layers.
+
+\term{First layer output difference.}
+This is the relative L2 distance between the attention outputs of the first full-attention layer with and without eviction.
+
+\input{generated/reference-metric-tables.tex}
+
+Table 1 gives the three metrics at an 8K and a 16K retained cache, and they do not agree on which policy is best.
+
+Head-sum and Head-maxsum give the smallest logprob difference, yet neither has the lowest attention weight or first layer output difference.
+
+
+\subsection{Metrics calculated online}
+\label{sec:online}
+
+I also compare the performance of gpt-oss-20b under a limited retained cache.
+
+The sweep compares every policy at the same retained KV-cache budgets.
+No tools are available to the model.
+
+The sweep uses the long problems \AimeProblems{}, where full cache needed 55K to 67K tokens.
+Each runs at \AimeBudgets{}K retained tokens with four seeds, and full cache, rerun with the same seeds, answers 18 of 20.
+Appendix~\ref{app:budget} records the model and serving details.
+
+\begin{center}
+\begin{minipage}{0.92\linewidth}\centering
+\includegraphics[width=\linewidth]{generated/task-aime.pdf}
+\end{minipage}
+\end{center}
+\capt{Figure 2. Accuracy of each eviction policy against retained KV budget, with the full-cache reference as a flat line at \AimeReference\%.
+Bars are 95\% Wilson intervals over 20 runs per point, five problems with four seeds each.}
+
+\SweepFinding{}
+The choice of eviction policy matters little.
+At 2K to 8K, Random Attention scores highest.
+
+\section{Use in ARC-AGI-3 competition}
+
+Cache eviction is one of the main strategies in my ARC-AGI-3~[6] submission.
+
+In the official ARC-AGI-3 competition, participants submit a piece of code that is run on a Google Cloud g4-standard-48 instance with one NVIDIA RTX PRO 6000.
+The popular model in ARC-AGI-3 is the 125B-parameter Qwen3.8-Flash-Next~[7], run from the W4A16 quantization~[8].
+It also carries 51B parameters of n-gram per-layer embeddings (PLE), about 100 GB in BF16, which are offloaded to host memory.
+
+\subsection{Implementation on Qwen3.8-Flash-Next}
+
+Qwen3.8-Flash-Next uses Qwen Sparse Attention.
+Every four tokens are indexed together as a block, which a query either reads whole or skips, and each query reads only the 512 blocks it selects.
+Eviction therefore happens at the block level instead of the token level.
+I keep a counter per block, scored by the maximum post-softmax attention over its four tokens and all 24 query heads, counted after a delay of 128 tokens, and at most 512 blocks are evicted at a boundary.
+Each sparse attention layer chooses its own victims.
+
+\subsection{Analysis of eviction patterns}
+\label{sec:analysis}
+
+I built an eviction viewer at \url{https://tonghuikang.github.io/cache-eviction/arc-agi-3} that shows one capture from AR25, an ARC-AGI-3 game, token by token.
+The capture covers 79,720 prompt tokens over 12 captured layers, made up of 64,885 text tokens and 38 images.
+Each token is shaded by how many of the 12 layers still hold its block.
+
+\term{Repetitive text is \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=44940}{evicted} first.}
+The longest spans that no layer keeps are the per-pixel diffs the game sends back, hundreds of tokens of coordinate lists and board rows drawn as dots and question marks, such as \texttt{50 33 9 -> 10}, \texttt{50 34 9 -> 10} and \texttt{50 35 9 -> 10} on successive lines (Figure~B2).
+
+\term{Important events are \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=47078}{retained}.}
+Of the 61,534 text tokens between the protected prefix and the recent window, 6,065 (9.9\%) are still held by all 12 layers, and 74\% of those are the model's own reasoning, such as \texttt{RIGHT \(\rightarrow\) P -3 (left), B +3 (right), wall unchanged} (Figure~B3).
+
+\term{Key image features are \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=1631}{retained}.}
+A further 17\% of those fully held tokens is what the harness sends back, including the statistics it prints for each frame, the bounding boxes and the per-region counts, such as \texttt{12-26 count 72 moved 3 pixels left} in the middle of the trace (Figure~B3).
+The per-pixel diffs those statistics summarize are evicted, and a fresh one arrives every turn.
+In the board images themselves, the patches that cover the game pieces and the target stay in most layers, while most of the uniform background is evicted (Figure~B4).
+
+\needspace{8\baselineskip}
+\subsection{Performance}
+
+Cache eviction has four benefits for the submission.
+
+\term{Decouple the KV cache allowance from context length.} A 128K-token sequence can be decoded on a 64K-token KV budget.
+This allows longer sequences to be decoded without compaction.
+
+\term{Run more sequences in parallel.} A bounded cache per sequence means more of them fit in the same pool, which allows for greater decode throughput.
+
+\term{Avoid bin-packing.} The Milestone 2 prize-winning solution had to plan in advance how many tokens each session would take, so that the sessions it ran together fitted the pool.
+A bounded cache per sequence removes that planning.
+
+\term{Skip the prefill when a level clears.} The usual approach discards the trace at the end of a level and prefills the next one from scratch.
+With eviction the cache of the previous level is dropped and decoding continues.
+
+Figure 3 compares Daniel Franzen's Milestone 2 prize-winning harness with my eviction-enabled run, following the comparison in~[9].
+Decode throughput stays above the Milestone 2 winning solution for almost the whole run, and the dips that mark prefill-heavy sessions are absent.
+Score per unit of wall-clock time is higher than the Milestone 2 solution, while score per token matches it.
+
+\begin{center}
+\begin{minipage}{0.31\linewidth}\centering
+Output throughput\\[3pt]
+\includegraphics[width=\linewidth]{generated/historical-throughput.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.31\linewidth}\centering
+Score over time\\[3pt]
+\includegraphics[width=\linewidth]{generated/historical-score.pdf}
+\end{minipage}\hfill
+\begin{minipage}{0.31\linewidth}\centering
+Score over tokens\\[3pt]
+\includegraphics[width=\linewidth]{generated/historical-score-tokens.pdf}
+\end{minipage}
+\end{center}
+\capt{Figure 3. Recorded throughput and score comparisons on public games. Grey is the Milestone 2 winning harness and blue is my eviction run.}
+
+I was the first to reach 20 points.
+At the end of Milestone 2, I was in 7th place with a score of 20.53 on the official leaderboard.
+After integrating ideas from the Milestone 2 winning solution, I am scoring 37.92, currently in 25th place.
+
+
+
+\section*{Conclusion and future work}
+
+I have compared cache eviction policies on gpt-oss-20b over a selected set of AIME problems, and described how I use cache eviction as a competitive strategy in ARC-AGI-3.
+On AIME, long reasoning needs 16K to 32K retained tokens before the policies come close to full cache.
+On ARC-AGI-3, eviction gives higher decode throughput at parity in score per token.
+
+I hope cache eviction makes it into mainstream inference frameworks, because most of what it needs already exists inside the serving stacks but is not exposed.
+Inference frameworks should provide two options.
+
+\term{Cache budget and eviction policy.}
+The caller should be able to set a cache budget smaller than the context length, and choose the policy that enforces it.
+Today the only way to bound the memory of a sequence is to bound its context, which also bounds what the model can see.
+
+\term{Cache eviction range.}
+The caller should be able to name the entries to evict, overriding whatever the policy would have chosen.
+When a task finishes a stage, a defined cache range can then be dropped while decoding continues, without restarting and prefilling the rest from scratch.
+
+\clearpage
+\section*{References}
+{\footnotesize\setlength{\parskip}{2pt}
+[1] N. Muennighoff et al. Prefix Sliding for Efficient Test-Time Scaling. 2026. \href{https://arxiv.org/abs/2608.26070}{arXiv:2608.26070}.\par
+[2] H. Wang et al. Random Attention: Rethinking KV Cache Eviction for Efficient Reasoning. 2026. \href{https://arxiv.org/abs/2609.03430}{arXiv:2609.03430}.\par
+[3] J. S. Vitter. Random Sampling with a Reservoir. ACM Transactions on Mathematical Software 11(1), 1985.\par
+[4] Z. Zhang et al. H$_2$O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models. 2023. \href{https://arxiv.org/abs/2306.14048}{arXiv:2306.14048}.\par
+[5] MathArena. AIME 2026. 2026. \href{https://huggingface.co/datasets/MathArena/aime_2026}{Hugging Face dataset}.\par
+[6] ARC Prize. ARC Prize 2026 -- ARC-AGI-3 Competition. 2026. \href{https://arcprize.org/competitions/2026/arc-agi-3}{Competition overview}.\par
+[7] Qwen Team. Qwen3.8-Flash-Next. 2026. \href{https://github.com/QwenLM/Qwen3.8-Flash-Next}{Official model repository}.\par
+[8] Intel. Qwen3.8-Flash-Next-W4A16-AutoRound. 2026. \href{https://huggingface.co/Intel/Qwen3.8-Flash-Next-W4A16-AutoRound}{Hugging Face checkpoint}.\par
+[9] H.-K. Tong. Comparing the Milestone 2 winning solutions. September 2026. \href{https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-3/discussion/744792}{Kaggle discussion}.\par
+[10] OpenAI. Introducing gpt-oss. 2025. \href{https://openai.com/index/introducing-gpt-oss/}{Model announcement}.\par}
+
+
+\clearpage
+\appendix
+\section{Model and measurement details}
+\label{app:budget}
+gpt-oss-20b is \texttt{openai/gpt-oss-20b}~[10], revision \texttt{6cee5e8}, with MXFP4 expert weights and a bf16 KV cache.
+It runs on SGLang 0.5.21 with the Triton attention backend, PyTorch 2.13 and CUDA 13.0, patched by an overlay that edits five SGLang files and adds one runtime module.
+
+The sweep, the full-cache runs and the parity metrics ran on one NVIDIA RTX PRO 6000 on Modal.
+The context limit is 131,072 tokens, generation is capped at 130,000 tokens, reasoning effort is high, and temperature is 1.
+
+Up to 320 requests share the server, admitted while their worst-case cache reservations fit within 95\% of its 2.89M-token pool, and no run was retracted.
+Each run decodes as a streaming session in calls that end on 2048-token boundaries, with sampling noise keyed on the seed and the position.
+Every prompt is shorter than 2048 tokens, and all evictions happen during decode.
+
+Ranking and compaction take a median of 2.5~ms and 0.6~ms per boundary, over 15,979 evicting boundaries under full load.
+
+The code will be made available in \url{https://github.com/tonghuikang/cache-eviction}.
+
+\subsection*{ARC-AGI-3 comparison}
+Figure 3 compares my eviction run with the Milestone 2 winning solution on the 25 original ARC-AGI-3~[6] games.
+The two runs use slightly different harnesses.
+The code for my ARC-AGI-3 submission will be made available after the competition ends on 2 November 2026.
+
+
+\clearpage
+\section{The eviction viewer}
+\label{app:screens}
+The viewer shades each token by how many of the 12 layers still hold its block.
+Figure B1 shows a span of reasoning around token 11,300 in retained focus, from \url{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=11300}.
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{center}
+\includegraphics[width=0.8\linewidth]{figures/ar25-retained.png}
+\end{center}
+\capt{Figure B1. Retained focus. What the layers kept is dark and what they dropped fades into the page.}
+\end{minipage}
+\vspace{1.5em}
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{center}
+\includegraphics[width=0.6\linewidth]{figures/ar25-diff.png}
+\end{center}
+\capt{Figure B2. The per-pixel diff quoted in Section~\ref{sec:analysis}, around token 44,940. No layer holds these lines. \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=44940}{Open in the viewer.}}
+\end{minipage}
+\vspace{1.5em}
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{center}
+\includegraphics[width=0.8\linewidth]{figures/ar25-conclusion.png}
+\end{center}
+\capt{Figure B3. The model's conclusion quoted in Section~\ref{sec:analysis}, around token 47,078, in the middle of the trace. At least 11 of the 12 layers hold the conclusion and the two sentences after it, while most of the reasoning around them fades. \href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=47078}{Open in the viewer.}}
+\end{minipage}
+\vspace{1.5em}
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{center}
+\includegraphics[width=0.46\linewidth]{figures/image-original.png}\hfill
+\includegraphics[width=0.46\linewidth]{figures/image-retained.png}\\
+Original recorded image \hfill Retained-token emphasis
+\end{center}
+\capt{Figure B4. The first board image of the capture, tokens 1,631 to 2,255, where each 32-by-32-pixel patch is one image token.
+The right panel fades each patch by how many of the 12 layers still hold its block.
+\href{https://tonghuikang.github.io/cache-eviction/arc-agi-3/?focus=retained&pos=1631}{Open in the viewer.}}
+\end{minipage}
+\vspace{1.5em}
+
+\end{document}
